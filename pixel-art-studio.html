@@ -1,0 +1,773 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Pixel Art Studio</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=IBM+Plex+Mono:wght@500;600&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --bg: #15161d;
+    --panel: #1c1e27;
+    --panel-alt: #242631;
+    --border: #333644;
+    --text: #eceef3;
+    --muted: #8b8fa3;
+    --accent: #5fd9b0;
+    --accent-dim: #3a5a50;
+  }
+  *{box-sizing:border-box;}
+  html,body{margin:0;padding:0;}
+  body{
+    background:var(--bg);
+    color:var(--text);
+    font-family:'Inter', sans-serif;
+    min-height:100vh;
+    padding:32px 20px 50px;
+  }
+  a{color:var(--accent);}
+  ::selection{background:var(--accent); color:#0f1712;}
+  input:focus-visible, button:focus-visible, select:focus-visible, [tabindex]:focus-visible{
+    outline: 2px solid var(--accent);
+    outline-offset: 2px;
+  }
+
+  header{
+    max-width:1180px;
+    margin:0 auto 24px;
+  }
+  h1{
+    font-size:20px;
+    font-weight:600;
+    margin:0;
+    letter-spacing:-0.2px;
+  }
+  header p{
+    margin:4px 0 0;
+    color:var(--muted);
+    font-size:13.5px;
+  }
+
+  .layout{
+    max-width:1180px;
+    margin:0 auto;
+    display:grid;
+    grid-template-columns: 1.5fr 1fr;
+    gap:20px;
+    align-items:start;
+  }
+  @media (max-width: 880px){
+    .layout{grid-template-columns:1fr;}
+  }
+
+  /* ---- viewer ---- */
+  .viewer-panel{
+    background:var(--panel);
+    border:1px solid var(--border);
+    border-radius:10px;
+    padding:16px;
+  }
+  .eyebrow{
+    font-size:11.5px;
+    font-weight:600;
+    color:var(--muted);
+    letter-spacing:0.4px;
+    text-transform:uppercase;
+    margin-bottom:12px;
+  }
+  .dropzone{
+    border:1.5px dashed var(--border);
+    border-radius:8px;
+    min-height:240px;
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    flex-direction:column;
+    gap:8px;
+    cursor:pointer;
+    text-align:center;
+    padding:24px;
+    color:var(--muted);
+    transition:border-color .15s, background .15s;
+  }
+  .dropzone:hover, .dropzone.drag{
+    border-color:var(--accent);
+    background:rgba(95,217,176,0.05);
+  }
+  .dropzone .big{
+    font-size:14px;
+    font-weight:600;
+    color:var(--text);
+  }
+  .dropzone .small{font-size:12.5px;}
+
+  .canvas-wrap{
+    display:none;
+    max-width:100%;
+  }
+  .canvas-wrap.show{display:block;}
+  .compare-stage{
+    position:relative;
+    max-width:100%;
+    line-height:0;
+    border-radius:6px;
+    overflow:hidden;
+  }
+  canvas{
+    max-width:100%;
+    height:auto;
+    display:block;
+    image-rendering:pixelated;
+    background:
+      linear-gradient(45deg, #2a2c38 25%, transparent 25%) -8px 0/16px 16px,
+      linear-gradient(-45deg, #2a2c38 25%, transparent 25%) -8px 0/16px 16px,
+      linear-gradient(45deg, transparent 75%, #2a2c38 75%) 0 0/16px 16px,
+      linear-gradient(-45deg, transparent 75%, #2a2c38 75%) 0 0/16px 16px,
+      #202330;
+  }
+  #afterCanvas{position:absolute; top:0; left:0;}
+
+  .compare-row{
+    display:flex; align-items:center; gap:10px;
+    margin-top:14px;
+    color:var(--muted); font-size:11.5px;
+  }
+  .compare-row input[type=range]{flex:1;}
+
+  .meta-row{
+    display:flex; justify-content:space-between;
+    margin-top:10px; font-size:11.5px; color:var(--muted);
+  }
+
+  /* ---- controls panel ---- */
+  .controls{
+    display:flex; flex-direction:column; gap:12px;
+  }
+  .card{
+    background:var(--panel);
+    border:1px solid var(--border);
+    border-radius:10px;
+    padding:16px;
+  }
+  .row{
+    display:flex; justify-content:space-between; align-items:baseline;
+    font-size:13px; margin-bottom:6px;
+  }
+  .row .val{color:var(--accent); font-family:'IBM Plex Mono', monospace; font-weight:600; font-size:12px;}
+  label.field{display:block; margin-bottom:14px;}
+  label.field:last-child{margin-bottom:0;}
+
+  input[type=range]{
+    -webkit-appearance:none; appearance:none;
+    width:100%; height:5px;
+    background:var(--panel-alt);
+    border-radius:3px;
+    outline:none;
+    cursor:pointer;
+  }
+  input[type=range]::-webkit-slider-thumb{
+    -webkit-appearance:none; appearance:none;
+    width:15px; height:15px;
+    border-radius:50%;
+    background:var(--accent);
+    cursor:pointer;
+    box-shadow:0 0 0 3px rgba(95,217,176,0.18);
+  }
+  input[type=range]::-moz-range-thumb{
+    width:15px; height:15px;
+    border-radius:50%;
+    border:none;
+    background:var(--accent);
+    cursor:pointer;
+  }
+  input[type=range]:disabled{opacity:.35; cursor:not-allowed;}
+  input[type=range]:disabled::-webkit-slider-thumb{background:var(--muted); box-shadow:none;}
+
+  .seg{
+    display:flex; border:1px solid var(--border); border-radius:7px; overflow:hidden;
+  }
+  .seg button{
+    flex:1; padding:8px 4px; font-size:12px; font-family:'Inter',sans-serif; font-weight:500;
+    background:var(--panel-alt); color:var(--muted); border:none; border-right:1px solid var(--border);
+    cursor:pointer;
+  }
+  .seg button:last-child{border-right:none;}
+  .seg button.active{background:var(--accent); color:#0f1712; font-weight:600;}
+
+  select{
+    width:100%; padding:9px; background:var(--panel-alt); color:var(--text);
+    border:1px solid var(--border); border-radius:6px; font-family:'Inter',sans-serif; font-size:13px;
+  }
+
+  .swatches{display:flex; flex-wrap:wrap; gap:8px; margin-top:10px;}
+  .swatch{position:relative; width:32px; height:32px;}
+  .swatch input[type=color]{
+    width:32px; height:32px; padding:0; border:2px solid var(--border); border-radius:6px; background:none; cursor:pointer;
+  }
+  .swatch .rm{
+    position:absolute; top:-6px; right:-6px; width:16px; height:16px; border-radius:50%;
+    background:var(--accent); color:#0f1712; border:none; font-size:10px; line-height:16px;
+    cursor:pointer; font-weight:700;
+  }
+  .add-swatch{
+    width:32px; height:32px; border-radius:6px; border:1.5px dashed var(--border); background:none; color:var(--muted);
+    cursor:pointer; font-size:15px;
+  }
+  .add-swatch:hover{border-color:var(--accent); color:var(--accent);}
+  .hint{color:var(--muted); font-size:11.5px; margin-top:8px; line-height:1.5;}
+
+  .actions{display:flex; gap:10px;}
+  button.btn{
+    font-family:'Inter',sans-serif; font-weight:600; font-size:13px;
+    padding:11px 14px; border:1px solid var(--border); border-radius:7px; cursor:pointer;
+    background:var(--panel-alt); color:var(--text); flex:1;
+  }
+  button.btn:hover:not(:disabled){border-color:var(--accent);}
+  button.btn:disabled{opacity:.4; cursor:not-allowed;}
+  button.btn.primary{background:var(--accent); color:#0f1712; border-color:var(--accent);}
+  button.btn.primary:hover:not(:disabled){filter:brightness(1.06);}
+  button.btn.ghost{background:none;}
+
+  footer{
+    max-width:1180px; margin:22px auto 0; color:var(--muted); font-size:12px; text-align:center;
+  }
+</style>
+</head>
+<body>
+
+<header>
+  <h1>Pixel Art Studio</h1>
+  <p>Upload a photo, pixelate it, and shape the palette.</p>
+</header>
+
+<div class="layout">
+
+  <!-- LEFT: VIEWER -->
+  <div class="viewer-panel">
+    <div class="eyebrow">Source</div>
+
+    <div class="dropzone" id="dropzone" tabindex="0" role="button" aria-label="Upload an image">
+      <div class="big">Drop an image here</div>
+      <div class="small">or click to browse · JPG, PNG, WebP</div>
+    </div>
+    <input type="file" id="fileInput" accept="image/*" style="display:none">
+
+    <div class="canvas-wrap" id="canvasWrap">
+      <div class="compare-stage" id="compareStage">
+        <canvas id="beforeCanvas"></canvas>
+        <canvas id="afterCanvas"></canvas>
+      </div>
+
+      <div class="compare-row">
+        <span>Original</span>
+        <input type="range" id="compareSlider" min="0" max="100" value="100" aria-label="Before and after comparison">
+        <span>Result</span>
+      </div>
+
+      <div class="meta-row">
+        <span id="dimsLabel">— × — px</span>
+        <span id="paletteLabel">auto palette</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- RIGHT: CONTROLS -->
+  <div class="controls">
+
+    <div class="card">
+      <div class="eyebrow">Pixelate</div>
+      <label class="field">
+        <div class="row"><span>Block size</span><span class="val" id="pixelSizeVal">8px</span></div>
+        <input type="range" id="pixelSize" min="2" max="40" value="8" disabled>
+      </label>
+    </div>
+
+    <div class="card">
+      <div class="eyebrow">Color</div>
+      <label class="field">
+        <div class="row"><span>Hue shift</span><span class="val" id="hueVal">0°</span></div>
+        <input type="range" id="hue" min="-180" max="180" value="0" disabled>
+      </label>
+      <label class="field">
+        <div class="row"><span>Saturation</span><span class="val" id="satVal">100%</span></div>
+        <input type="range" id="saturation" min="0" max="200" value="100" disabled>
+      </label>
+      <label class="field">
+        <div class="row"><span>Brightness</span><span class="val" id="brightVal">100%</span></div>
+        <input type="range" id="brightness" min="0" max="200" value="100" disabled>
+      </label>
+    </div>
+
+    <div class="card">
+      <div class="eyebrow">Palette</div>
+
+      <div class="seg" id="modeSeg">
+        <button type="button" data-mode="auto" class="active">Auto</button>
+        <button type="button" data-mode="preset">Preset</button>
+        <button type="button" data-mode="custom">Custom</button>
+      </div>
+
+      <label class="field" id="colorCountField" style="margin-top:14px;">
+        <div class="row"><span>Colors</span><span class="val" id="colorCountVal">16</span></div>
+        <input type="range" id="colorCount" min="2" max="64" value="16" disabled>
+      </label>
+
+      <label class="field" id="presetField" style="display:none;">
+        <select id="presetSelect">
+          <option value="grayscale">Grayscale</option>
+          <option value="gameboy">Retro handheld (4-tone green)</option>
+          <option value="bw">Black &amp; white</option>
+        </select>
+      </label>
+
+      <div id="customField" style="display:none;">
+        <div class="swatches" id="swatches"></div>
+        <div class="hint">Pick 2–8 colors. Every pixel snaps to the nearest one — try just red and blue.</div>
+      </div>
+    </div>
+
+    <div class="card actions">
+      <button class="btn ghost" id="resetBtn" disabled>Reset</button>
+      <button class="btn primary" id="downloadBtn" disabled>Download PNG</button>
+    </div>
+
+  </div>
+</div>
+
+<footer>Made by Avery Beuth</footer>
+
+<script>
+(function(){
+  "use strict";
+
+  // ---------- state ----------
+  const defaults = {
+    pixelSize: 8,
+    hue: 0,
+    saturation: 100,
+    brightness: 100,
+    mode: 'auto',        // 'auto' | 'preset' | 'custom'
+    colorCount: 16,
+    preset: 'grayscale',
+    customPalette: ['#ff4d6d', '#4d7cff']
+  };
+  let settings = JSON.parse(JSON.stringify(defaults));
+  let img = null;           // loaded HTMLImageElement
+  let naturalW = 0, naturalH = 0;
+  let renderScheduled = false;
+
+  const MAX_PROC_DIM = 400; // cap processing resolution for performance
+
+  // ---------- elements ----------
+  const dropzone = document.getElementById('dropzone');
+  const fileInput = document.getElementById('fileInput');
+  const canvasWrap = document.getElementById('canvasWrap');
+  const beforeCanvas = document.getElementById('beforeCanvas');
+  const afterCanvas = document.getElementById('afterCanvas');
+  const compareSlider = document.getElementById('compareSlider');
+  const dimsLabel = document.getElementById('dimsLabel');
+  const paletteLabel = document.getElementById('paletteLabel');
+
+  const pixelSizeInput = document.getElementById('pixelSize');
+  const hueInput = document.getElementById('hue');
+  const saturationInput = document.getElementById('saturation');
+  const brightnessInput = document.getElementById('brightness');
+  const colorCountInput = document.getElementById('colorCount');
+  const presetSelect = document.getElementById('presetSelect');
+  const modeSeg = document.getElementById('modeSeg');
+  const colorCountField = document.getElementById('colorCountField');
+  const presetField = document.getElementById('presetField');
+  const customField = document.getElementById('customField');
+  const swatchesEl = document.getElementById('swatches');
+
+  const resetBtn = document.getElementById('resetBtn');
+  const downloadBtn = document.getElementById('downloadBtn');
+
+  const allSliders = [pixelSizeInput, hueInput, saturationInput, brightnessInput, colorCountInput];
+  const allControls = [...allSliders, presetSelect, resetBtn, downloadBtn];
+
+  // working (small) canvas, never attached to DOM
+  const workCanvas = document.createElement('canvas');
+  const wctx = workCanvas.getContext('2d', {willReadFrequently:true});
+
+  // ---------- upload ----------
+  dropzone.addEventListener('click', () => fileInput.click());
+  dropzone.addEventListener('keydown', e => {
+    if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); fileInput.click(); }
+  });
+  ['dragenter','dragover'].forEach(evt => dropzone.addEventListener(evt, e => {
+    e.preventDefault(); dropzone.classList.add('drag');
+  }));
+  ['dragleave','drop'].forEach(evt => dropzone.addEventListener(evt, e => {
+    e.preventDefault(); dropzone.classList.remove('drag');
+  }));
+  dropzone.addEventListener('drop', e => {
+    const f = e.dataTransfer.files && e.dataTransfer.files[0];
+    if (f) loadFile(f);
+  });
+  fileInput.addEventListener('change', e => {
+    const f = e.target.files[0];
+    if (f) loadFile(f);
+  });
+
+  function loadFile(file){
+    if (!file.type.startsWith('image/')) return;
+    const reader = new FileReader();
+    reader.onload = e => {
+      const image = new Image();
+      image.onload = () => onImageReady(image);
+      image.src = e.target.result;
+    };
+    reader.readAsDataURL(file);
+  }
+
+  function onImageReady(image){
+    img = image;
+    naturalW = image.naturalWidth;
+    naturalH = image.naturalHeight;
+
+    // reset all settings for the fresh image
+    settings = JSON.parse(JSON.stringify(defaults));
+    settings.pixelSize = clamp(Math.round(Math.max(naturalW, naturalH) / 120), 2, 40);
+
+    canvasWrap.classList.add('show');
+    dimsLabel.textContent = naturalW + ' × ' + naturalH + ' px';
+
+    beforeCanvas.width = naturalW; beforeCanvas.height = naturalH;
+    const bctx = beforeCanvas.getContext('2d');
+    bctx.clearRect(0,0,naturalW,naturalH);
+    bctx.drawImage(img, 0, 0);
+
+    allControls.forEach(c => c.disabled = false);
+    syncUIFromSettings();
+    buildSwatches();
+    updateCompareClip();
+    scheduleRender();
+  }
+
+  // ---------- UI wiring ----------
+  function syncUIFromSettings(){
+    pixelSizeInput.value = settings.pixelSize;
+    hueInput.value = settings.hue;
+    saturationInput.value = settings.saturation;
+    brightnessInput.value = settings.brightness;
+    colorCountInput.value = settings.colorCount;
+    presetSelect.value = settings.preset;
+    document.querySelectorAll('#modeSeg button').forEach(b => {
+      b.classList.toggle('active', b.dataset.mode === settings.mode);
+    });
+    updateLabels();
+    updateModeVisibility();
+  }
+
+  function updateLabels(){
+    document.getElementById('pixelSizeVal').textContent = settings.pixelSize + 'px';
+    document.getElementById('hueVal').textContent = settings.hue + '°';
+    document.getElementById('satVal').textContent = settings.saturation + '%';
+    document.getElementById('brightVal').textContent = settings.brightness + '%';
+    document.getElementById('colorCountVal').textContent = settings.colorCount;
+    const modeText = settings.mode === 'auto' ? (settings.colorCount + '-color auto palette')
+      : settings.mode === 'preset' ? presetSelect.options[presetSelect.selectedIndex].text
+      : settings.customPalette.length + '-color custom palette';
+    paletteLabel.textContent = modeText;
+  }
+
+  function updateModeVisibility(){
+    colorCountField.style.display = (settings.mode === 'auto' || (settings.mode==='preset' && settings.preset==='grayscale')) ? '' : 'none';
+    presetField.style.display = settings.mode === 'preset' ? '' : 'none';
+    customField.style.display = settings.mode === 'custom' ? '' : 'none';
+  }
+
+  modeSeg.addEventListener('click', e => {
+    const btn = e.target.closest('button[data-mode]');
+    if (!btn) return;
+    settings.mode = btn.dataset.mode;
+    syncUIFromSettings();
+    scheduleRender();
+  });
+
+  pixelSizeInput.addEventListener('input', () => { settings.pixelSize = +pixelSizeInput.value; updateLabels(); scheduleRender(); });
+  hueInput.addEventListener('input', () => { settings.hue = +hueInput.value; updateLabels(); scheduleRender(); });
+  saturationInput.addEventListener('input', () => { settings.saturation = +saturationInput.value; updateLabels(); scheduleRender(); });
+  brightnessInput.addEventListener('input', () => { settings.brightness = +brightnessInput.value; updateLabels(); scheduleRender(); });
+  colorCountInput.addEventListener('input', () => { settings.colorCount = +colorCountInput.value; updateLabels(); scheduleRender(); });
+  presetSelect.addEventListener('change', () => { settings.preset = presetSelect.value; updateModeVisibility(); updateLabels(); scheduleRender(); });
+
+  compareSlider.addEventListener('input', updateCompareClip);
+  function updateCompareClip(){
+    const v = compareSlider.value;
+    afterCanvas.style.clipPath = `inset(0 ${100 - v}% 0 0)`;
+  }
+
+  // ---------- custom palette ----------
+  function buildSwatches(){
+    swatchesEl.innerHTML = '';
+    settings.customPalette.forEach((hex, i) => {
+      const wrap = document.createElement('div');
+      wrap.className = 'swatch';
+      const input = document.createElement('input');
+      input.type = 'color';
+      input.value = hex;
+      input.addEventListener('input', () => { settings.customPalette[i] = input.value; scheduleRender(); });
+      wrap.appendChild(input);
+      if (settings.customPalette.length > 2){
+        const rm = document.createElement('button');
+        rm.className = 'rm'; rm.type = 'button'; rm.textContent = '×';
+        rm.setAttribute('aria-label','Remove color');
+        rm.addEventListener('click', () => {
+          settings.customPalette.splice(i,1);
+          buildSwatches();
+          updateLabels();
+          scheduleRender();
+        });
+        wrap.appendChild(rm);
+      }
+      swatchesEl.appendChild(wrap);
+    });
+    if (settings.customPalette.length < 8){
+      const add = document.createElement('button');
+      add.className = 'add-swatch'; add.type = 'button'; add.textContent = '+';
+      add.setAttribute('aria-label','Add color');
+      add.addEventListener('click', () => {
+        const palette = ['#ffffff','#000000','#ff4d6d','#4d7cff','#59f3c4','#ffd23f','#9d7bff','#ff9f4d'];
+        const next = palette.find(c => !settings.customPalette.includes(c)) || '#888888';
+        settings.customPalette.push(next);
+        buildSwatches();
+        updateLabels();
+        scheduleRender();
+      });
+      swatchesEl.appendChild(add);
+    }
+  }
+
+  // ---------- reset / download ----------
+  resetBtn.addEventListener('click', () => {
+    if (!img) return;
+    settings = JSON.parse(JSON.stringify(defaults));
+    settings.pixelSize = clamp(Math.round(Math.max(naturalW, naturalH) / 120), 2, 40);
+    syncUIFromSettings();
+    buildSwatches();
+    compareSlider.value = 100;
+    updateCompareClip();
+    scheduleRender();
+  });
+
+  downloadBtn.addEventListener('click', () => {
+    if (!img) return;
+    const link = document.createElement('a');
+    link.download = 'pixel-art.png';
+    link.href = afterCanvas.toDataURL('image/png');
+    link.click();
+  });
+
+  // ---------- render pipeline ----------
+  function scheduleRender(){
+    if (renderScheduled) return;
+    renderScheduled = true;
+    requestAnimationFrame(() => { renderScheduled = false; render(); });
+  }
+
+  function render(){
+    if (!img) return;
+
+    // effective pixel size, clamped so the working canvas never explodes in size
+    const minPixelForCap = Math.max(naturalW, naturalH) / MAX_PROC_DIM;
+    const effPixel = Math.max(settings.pixelSize, minPixelForCap, 1);
+
+    const smallW = Math.max(1, Math.round(naturalW / effPixel));
+    const smallH = Math.max(1, Math.round(naturalH / effPixel));
+
+    workCanvas.width = smallW;
+    workCanvas.height = smallH;
+    wctx.imageSmoothingEnabled = true;
+    wctx.clearRect(0,0,smallW,smallH);
+    wctx.drawImage(img, 0, 0, smallW, smallH);
+
+    let imageData;
+    try {
+      imageData = wctx.getImageData(0, 0, smallW, smallH);
+    } catch(e){ return; } // e.g. tainted canvas from a cross-origin source
+
+    applyHueSatBright(imageData, settings.hue, settings.saturation, settings.brightness);
+
+    let palette = null;
+    if (settings.mode === 'custom' && settings.customPalette.length >= 2){
+      palette = settings.customPalette.map(hexToRgb);
+    } else if (settings.mode === 'preset'){
+      palette = buildPresetPalette(settings.preset, settings.colorCount);
+    } else {
+      palette = kmeansPalette(imageData, settings.colorCount);
+    }
+    if (palette) applyPaletteMap(imageData, palette);
+
+    wctx.putImageData(imageData, 0, 0);
+
+    afterCanvas.width = naturalW;
+    afterCanvas.height = naturalH;
+    const actx = afterCanvas.getContext('2d');
+    actx.imageSmoothingEnabled = false;
+    actx.clearRect(0,0,naturalW,naturalH);
+    actx.drawImage(workCanvas, 0, 0, smallW, smallH, 0, 0, naturalW, naturalH);
+
+    updateCompareClip();
+  }
+
+  // ---------- color math ----------
+  function clamp(v, lo, hi){ return Math.min(hi, Math.max(lo, v)); }
+
+  function hexToRgb(hex){
+    const h = hex.replace('#','');
+    return [
+      parseInt(h.substring(0,2),16),
+      parseInt(h.substring(2,4),16),
+      parseInt(h.substring(4,6),16)
+    ];
+  }
+
+  function rgbToHsl(r,g,b){
+    r/=255; g/=255; b/=255;
+    const max = Math.max(r,g,b), min = Math.min(r,g,b);
+    let h=0, s=0; const l=(max+min)/2;
+    const d = max-min;
+    if (d !== 0){
+      s = l > 0.5 ? d/(2-max-min) : d/(max+min);
+      switch(max){
+        case r: h = (g-b)/d + (g<b?6:0); break;
+        case g: h = (b-r)/d + 2; break;
+        case b: h = (r-g)/d + 4; break;
+      }
+      h /= 6;
+    }
+    return [h,s,l];
+  }
+
+  function hue2rgb(p,q,t){
+    if (t<0) t+=1;
+    if (t>1) t-=1;
+    if (t<1/6) return p+(q-p)*6*t;
+    if (t<1/2) return q;
+    if (t<2/3) return p+(q-p)*(2/3-t)*6;
+    return p;
+  }
+
+  function hslToRgb(h,s,l){
+    let r,g,b;
+    if (s===0){ r=g=b=l; }
+    else {
+      const q = l<0.5 ? l*(1+s) : l+s-l*s;
+      const p = 2*l-q;
+      r = hue2rgb(p,q,h+1/3);
+      g = hue2rgb(p,q,h);
+      b = hue2rgb(p,q,h-1/3);
+    }
+    return [r*255, g*255, b*255];
+  }
+
+  function applyHueSatBright(imageData, hueDeg, satPct, brightPct){
+    const data = imageData.data;
+    const satMul = satPct/100;
+    const brightMul = brightPct/100;
+    const hueFrac = hueDeg/360;
+    for (let i=0; i<data.length; i+=4){
+      if (data[i+3] === 0) continue;
+      let [h,s,l] = rgbToHsl(data[i], data[i+1], data[i+2]);
+      h = (h + hueFrac + 1) % 1;
+      s = clamp(s*satMul, 0, 1);
+      let [r,g,b] = hslToRgb(h,s,l);
+      data[i]   = clamp(r*brightMul, 0, 255);
+      data[i+1] = clamp(g*brightMul, 0, 255);
+      data[i+2] = clamp(b*brightMul, 0, 255);
+    }
+  }
+
+  function buildPresetPalette(name, colorCount){
+    if (name === 'gameboy'){
+      return [[15,56,15],[48,98,48],[139,172,15],[155,188,15]];
+    }
+    if (name === 'bw'){
+      return [[0,0,0],[255,255,255]];
+    }
+    // grayscale, spans `colorCount` evenly spaced levels
+    const n = Math.max(2, colorCount);
+    const levels = [];
+    for (let i=0; i<n; i++){
+      const v = Math.round((i/(n-1))*255);
+      levels.push([v,v,v]);
+    }
+    return levels;
+  }
+
+  function kmeansPalette(imageData, k){
+    const data = imageData.data;
+    const totalPixels = imageData.width * imageData.height;
+    k = Math.max(2, Math.min(k, totalPixels));
+
+    const sampleTarget = Math.min(totalPixels, 2000);
+    const stride = Math.max(1, Math.floor(totalPixels / sampleTarget));
+    const samples = [];
+    for (let p=0; p<totalPixels; p+=stride){
+      const idx = p*4;
+      if (data[idx+3] === 0) continue;
+      samples.push([data[idx], data[idx+1], data[idx+2]]);
+    }
+    if (samples.length === 0) return [[0,0,0]];
+    if (samples.length <= k) return samples.slice();
+
+    // seed centroids spread across the sample list
+    const centroids = [];
+    const usedIdx = new Set();
+    for (let c=0; c<k; c++){
+      let idx = Math.floor((c/k) * samples.length);
+      while (usedIdx.has(idx)) idx = (idx+1) % samples.length;
+      usedIdx.add(idx);
+      centroids.push(samples[idx].slice());
+    }
+
+    for (let iter=0; iter<6; iter++){
+      const sums = centroids.map(() => [0,0,0,0]);
+      for (let s=0; s<samples.length; s++){
+        const px = samples[s];
+        let best = 0, bestDist = Infinity;
+        for (let c=0; c<centroids.length; c++){
+          const cc = centroids[c];
+          const dr = px[0]-cc[0], dg = px[1]-cc[1], db = px[2]-cc[2];
+          const dist = dr*dr+dg*dg+db*db;
+          if (dist < bestDist){ bestDist = dist; best = c; }
+        }
+        sums[best][0]+=px[0]; sums[best][1]+=px[1]; sums[best][2]+=px[2]; sums[best][3]++;
+      }
+      for (let c=0; c<centroids.length; c++){
+        if (sums[c][3] > 0){
+          centroids[c][0] = sums[c][0]/sums[c][3];
+          centroids[c][1] = sums[c][1]/sums[c][3];
+          centroids[c][2] = sums[c][2]/sums[c][3];
+        } else {
+          centroids[c] = samples[Math.floor(Math.random()*samples.length)].slice();
+        }
+      }
+    }
+    return centroids.map(c => [Math.round(c[0]), Math.round(c[1]), Math.round(c[2])]);
+  }
+
+  function applyPaletteMap(imageData, palette){
+    const data = imageData.data;
+    for (let i=0; i<data.length; i+=4){
+      if (data[i+3] === 0) continue;
+      const r = data[i], g = data[i+1], b = data[i+2];
+      let best = palette[0], bestDist = Infinity;
+      for (let p=0; p<palette.length; p++){
+        const pc = palette[p];
+        const dr = r-pc[0], dg = g-pc[1], db = b-pc[2];
+        const dist = dr*dr+dg*dg+db*db;
+        if (dist < bestDist){ bestDist = dist; best = pc; }
+      }
+      data[i] = best[0]; data[i+1] = best[1]; data[i+2] = best[2];
+    }
+  }
+
+})();
+</script>
+</body>
+</html>
